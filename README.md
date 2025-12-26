@@ -1,8 +1,19 @@
-# Neural Forecasting Project
+# Neural Signal Forecasting Project (Baseline GRU)
 
-This repository contains the implementation of a Neural Signal Forecasting model (GRU-based Baseline) for the competition.
+This repository contains the full implementation of the Neural Signal Forecasting pipeline for the competition. It includes the baseline GRU model, a robust training framework, and a verification system for correct submission formatting.
 
-## 📂 Project Structure
+---
+
+## 👥 Team Roles & Responsibilities
+
+| Role | Module | Key Responsibilities | Deliverables |
+| :--- | :--- | :--- | :--- |
+| **A (Temporal Lead)** | `models/temporal.py` | Time-series encoding (GRU/Transformer), prediction decoding. | `TemporalBlock` (nn.Module), Feature Embeddings |
+| **B (Spatial Lead)** | `models/spatial.py` | Spatial analysis (EDA), GNN layers, adjacency matrix optimization. | `SpatialBlock` (nn.Module), Adjacency Matrix |
+| **C (Training Lead)** | `utils/trainer.py` | Spectral analysis (EDA), Normalization strategies, Loss function design. | Optimized Hyperparameters (LR, Loss), `stats.npz` |
+| **D (Integration)** | `model.py` | Module integration, Path management, Submission environment compliance. | Valid `submission.zip`, Integrated `Model` class |
+
+---
 
 ## 📂 Project Structure & File Purpose
 
@@ -24,12 +35,11 @@ This repository contains the implementation of a Neural Signal Forecasting model
 | `train.py` | Main script to run training (generates `weights/`). |
 | `test_predict.py` | Script to evaluate model performance (MSE/R2). |
 
+---
 
 ## 🚀 Quick Start
 
 ### 1. Environment Setup
-
-Create the conda environment and install dependencies:
 
 ```bash
 conda create -n neural_forecasting python=3.10 -y
@@ -45,7 +55,7 @@ Ensure the following data files are in the `data/` directory:
 
 ### 3. Training
 
-Train the model for a specific subject (dataset):
+Train the model (Generates weights and normalization stats):
 
 ```bash
 # Train Monkey 'beignet'
@@ -55,17 +65,15 @@ python train.py --dataset beignet
 python train.py --dataset affi
 ```
 
-This will generate:
-- `weights/model_{dataset}.pth`: Trained weights.
-- `weights/stats_{dataset}.npz`: Normalization statistics (Important for correct inference!).
-
 ### 4. Evaluation
 
-Run the evaluation script to check MSE and R2 scores on the validation set:
+Verify performance on the validation set:
 
 ```bash
 python test_predict.py
 ```
+
+---
 
 ## 📊 Current Baseline Performance (GRU)
 
@@ -74,11 +82,13 @@ python test_predict.py
 | **Beignet** | Val (Forecasting) | ~110,951 | **0.7506** | Baseline (Normalized Input/Output) |
 | **Affi** | Val (Forecasting) | ~59,784 | **0.8154** | Baseline (Normalized Input/Output) |
 
-> **Note:** The high MSE is expected as the model output is denormalized to the original biological signal scale. The high R2 score indicates good trend prediction.
+> **Note:** The high MSE is due to the denormalization of the output to the original biological signal scale. The high R2 score confirms that the model is correctly predicting the trends.
+
+---
 
 ## 📝 Submission Guidelines
 
-To submit to the competition platform, compress the following into a `zip` file:
+To submit to the competition platform, compress the following into a **single zip file**:
 
 1. `model.py`
 2. `weights/model_beignet.pth`
@@ -86,19 +96,12 @@ To submit to the competition platform, compress the following into a `zip` file:
 4. `weights/model_affi.pth`
 5. `weights/stats_affi.npz`
 
-**Ensure all files are either in the root of the zip or `weights/` is preserved as a subfolder.**
+**Important:** The `model.py` submission file is pre-configured to automatically load the correct weights and normalization statistics for each monkey.
+
+---
 
 ## 🛠 Development Roadmap
 
-- [x] **Phase 1: Baseline** - Implement GRU model with correct normalization pipeline.
-- [ ] **Phase 2: Feature Expansion** - Use all 5 input features (currently using only 1).
+- [x] **Phase 1: Baseline** - Implement GRU model with correct normalization pipeline (Completed by Role C & D).
+- [ ] **Phase 2: Feature Expansion** - Use all 5 input features (currently using only 1). **[High Impact]**
 - [ ] **Phase 3: Architecture** - Implement Transformer / GNN for better spatial-temporal modeling.
-
-## 👥 Team Roles & Responsibilities
-
-| Role | Module | Key Responsibilities | Deliverables |
-| :--- | :--- | :--- | :--- |
-| **A (Temporal Lead)** | `models/temporal.py` | Time-series encoding (GRU/Transformer), prediction decoding. | `TemporalBlock` (nn.Module), Feature Embeddings |
-| **B (Spatial Lead)** | `models/spatial.py` | Spatial analysis (EDA), GNN layers, adjacency matrix optimization. | `SpatialBlock` (nn.Module), Adjacency Matrix |
-| **C (Training Lead)** | `utils/trainer.py` | Spectral analysis (EDA), Normalization strategies, Loss function design. | Optimized Hyperparameters (LR, Loss), `stats.npz` |
-| **D (Integration)** | `model.py` | Module integration, Path management, Submission environment compliance. | Valid `submission.zip`, Integrated `Model` class |
