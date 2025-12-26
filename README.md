@@ -4,18 +4,26 @@ This repository contains the implementation of a Neural Signal Forecasting model
 
 ## 📂 Project Structure
 
-```bash
-.
-├── data/                   # Data files (.npz) - Not tracked by git
-├── models/                 # Model definitions (archived/experimental)
-├── notebooks/              # Jupyter Notebooks for EDA and Demo
-├── utils/                  # Utility scripts (data loading, trainer)
-├── weights/                # Trained model weights and stats
-├── model.py                # [CRITICAL] Submission file (Model wrapper & Architecture)
-├── train.py                # Main training script
-├── test_predict.py         # Evaluation script (MSE/R2 calculation)
-└── requirements.txt        # Python dependencies
-```
+## 📂 Project Structure & File Purpose
+
+**Where should I put my code?**
+
+| Path | Purpose |
+| :--- | :--- |
+| **`models/`** | **Model Definitions** |
+| `models/temporal.py` | **(Role A)** Time-series encoder (GRU, Transformer). Process `(Batch, Time, Channel)` data. |
+| `models/spatial.py` | **(Role B)** Spatial encoder (GNN, CNN). Process brain topology & connectivity. |
+| `models/hybrid_model.py` | **(Role D)** The "Motherboard" that connects Temporal and Spatial modules together. |
+| **`notebooks/`** | **EDA & Experiments** |
+| `notebooks/*.ipynb` | **(All Roles)** Place all Exploratory Data Analysis here (e.g., FFT, Spectrograms). |
+| **`utils/`** | **Helper Functions** |
+| `utils/data_loader.py` | Data loading, splitting, and `NeuroForcastDataset` class. |
+| `utils/trainer.py` | **(Role C)** The training loop, validation logic, and loss calculation. |
+| **`Root`** | **Execution & Submission** |
+| `model.py` | **[CRITICAL]** The submission wrapper. Must import from `models/` and load weights. |
+| `train.py` | Main script to run training (generates `weights/`). |
+| `test_predict.py` | Script to evaluate model performance (MSE/R2). |
+
 
 ## 🚀 Quick Start
 
@@ -85,3 +93,12 @@ To submit to the competition platform, compress the following into a `zip` file:
 - [x] **Phase 1: Baseline** - Implement GRU model with correct normalization pipeline.
 - [ ] **Phase 2: Feature Expansion** - Use all 5 input features (currently using only 1).
 - [ ] **Phase 3: Architecture** - Implement Transformer / GNN for better spatial-temporal modeling.
+
+## 👥 Team Roles & Responsibilities
+
+| Role | Module | Key Responsibilities | Deliverables |
+| :--- | :--- | :--- | :--- |
+| **A (Temporal Lead)** | `models/temporal.py` | Time-series encoding (GRU/Transformer), prediction decoding. | `TemporalBlock` (nn.Module), Feature Embeddings |
+| **B (Spatial Lead)** | `models/spatial.py` | Spatial analysis (EDA), GNN layers, adjacency matrix optimization. | `SpatialBlock` (nn.Module), Adjacency Matrix |
+| **C (Training Lead)** | `utils/trainer.py` | Spectral analysis (EDA), Normalization strategies, Loss function design. | Optimized Hyperparameters (LR, Loss), `stats.npz` |
+| **D (Integration)** | `model.py` | Module integration, Path management, Submission environment compliance. | Valid `submission.zip`, Integrated `Model` class |
