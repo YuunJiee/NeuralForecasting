@@ -44,3 +44,5 @@ weights/
 *.csv
 !data/.gitkeep
 !weights/.gitkeep
+
+results/

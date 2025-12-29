@@ -63,6 +63,13 @@ def normalize(data, average=[], std=[]):
 
     original_shape = data.shape
     
+    # --- OPTIMIZATION 1: Band 0 Negative Clamping ---
+    # REVERTED: Caused R2 drop to 0.52. Negative values are significant.
+    # if data.ndim == 4 and data.shape[3] >= 1:
+    #     band0 = data[..., 0]
+    #     band0[band0 < 0] = 0
+    #     data[..., 0] = band0
+        
     if data.ndim == 4:
         # n, t, c, f = data.shape already defined
         data_reshaped = data.reshape((n*t, -1))  # neuron input flattened
@@ -92,10 +99,10 @@ class NeuroForcastDataset(Dataset):
     def __init__(self, neural_data, use_graph=False, average=[], std=[]):
         """
         Args:
-            neural_data: N*T*C*F (sample size * total time steps * channel * feature dimension)
-            use_graph: Boolean, if false take only the first feature
-            average: Precomputed mean for normalization
-            std: Precomputed std for normalization
+            neural_data: N*T*C*F
+            use_graph: Boolean
+            average: Precomputed mean
+            std: Precomputed std
         """
         self.data = neural_data
         self.use_graph = use_graph

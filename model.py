@@ -3,6 +3,100 @@ import torch.nn as nn
 import os
 import numpy as np
 
+class MovingAvg(nn.Module):
+    """
+    Moving average block to highlight the trend of time series
+    """
+    def __init__(self, kernel_size, stride):
+        super(MovingAvg, self).__init__()
+        self.kernel_size = kernel_size
+        self.avg = nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
+
+    def forward(self, x):
+        # padding on the both ends of time series
+        front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        x = torch.cat([front, x, end], dim=1)
+        x = self.avg(x.permute(0, 2, 1))
+        x = x.permute(0, 2, 1)
+        return x
+
+
+class SeriesDecomp(nn.Module):
+    """
+    Series decomposition block
+    """
+    def __init__(self, kernel_size):
+        super(SeriesDecomp, self).__init__()
+        self.moving_avg = MovingAvg(kernel_size, stride=1)
+
+    def forward(self, x):
+        moving_mean = self.moving_avg(x)
+        res = x - moving_mean
+        return res, moving_mean
+
+
+class DLinear(nn.Module):
+    """
+    DLinear optimization for Neural Forecasting.
+    Input: (B, 20, C) -> But we only use first 10.
+    Output: (B, 20, C) -> But we only predict last 10 (first 10 are zeros).
+    """
+    def __init__(self, input_size, seq_len=10, pred_len=10, individual=False):
+        super(DLinear, self).__init__()
+        self.seq_len = seq_len
+        self.pred_len = pred_len
+
+        # Decompsition Kernel Size
+        kernel_size = 3
+        self.decompsition = SeriesDecomp(kernel_size)
+        self.individual = individual
+        self.channels = input_size
+        
+        if self.individual:
+            self.Linear_Seasonal = nn.ModuleList()
+            self.Linear_Trend = nn.ModuleList()
+            for i in range(self.channels):
+                self.Linear_Seasonal.append(nn.Linear(self.seq_len, self.pred_len))
+                self.Linear_Trend.append(nn.Linear(self.seq_len, self.pred_len))
+        else:
+            self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
+            self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
+
+    def forward(self, x):
+        # x shape: (Batch, 20, C)
+        # Slice the real input (first 10 steps)
+        x_in = x[:, :self.seq_len, :] # (B, 10, C)
+        
+        # Decompose
+        seasonal_init, trend_init = self.decompsition(x_in)
+        # seasonal_init: (B, 10, C), trend_init: (B, 10, C)
+        
+        # Permute to (B, C, L) for Linear Layer
+        seasonal_init, trend_init = seasonal_init.permute(0, 2, 1), trend_init.permute(0, 2, 1)
+        
+        if self.individual:
+            seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.pred_len],
+                                          dtype=seasonal_init.dtype).to(seasonal_init.device)
+            trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.pred_len],
+                                       dtype=trend_init.dtype).to(trend_init.device)
+            for i in range(self.channels):
+                seasonal_output[:, i, :] = self.Linear_Seasonal[i](seasonal_init[:, i, :])
+                trend_output[:, i, :] = self.Linear_Trend[i](trend_init[:, i, :])
+        else:
+            seasonal_output = self.Linear_Seasonal(seasonal_init)
+            trend_output = self.Linear_Trend(trend_init)
+
+        x_out = seasonal_output + trend_output
+        
+        # Permute back to (B, L, C) -> (B, 10, C)
+        x_out = x_out.permute(0, 2, 1)
+        
+        # Construct full 20-step output
+        output = torch.cat([x[:, :self.seq_len, :], x_out], dim=1) # (B, 20, C)
+        
+        return output
+
 # Define the baseline model from the demo notebook
 class NFBaseModel(nn.Module):
     def __init__(self, input_size=96, hidden_size=256):
@@ -54,16 +148,17 @@ class Model:
         self.hidden_size = 1024 
         # Note: Demo used hidden_size=1024 in the main block, but class def default was 256. 
         # We use 1024 to match the demo execution script.
-
+        
         # Initialize the actual PyTorch model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = NFBaseModel(input_size=self.input_size, hidden_size=self.hidden_size)
+        # Use DLinear instead of NFBaseModel
+        self.model = DLinear(input_size=self.input_size)
         self.model.to(self.device)
         
         # Statistics for normalization (initialized as None)
         self.average = None
         self.std = None
-
+            
     def _normalize(self, data):
         """
         Normalize input data using loaded statistics.
@@ -72,21 +167,11 @@ class Model:
         if self.average is None or self.std is None:
             print("Warning: Normalization statistics not loaded. Using raw data.")
             return data
-            
+             
         n = data.shape[0]
         t = data.shape[1]
         
-        # Reshape logic mirrors data_loader.py but we need to be careful with dimensions
-        # Input X is (N, T, C, F) or (N, T, C)
-        # data_loader calculates mean/std on reshaped (N*T, -1)
-        
-        # For prediction, we just apply the formula broadcasting over N and T
-        # average and std shapes are likely (1, C*F) or similar from training
-        
-        # Let's check how they were saved. 
-        # In data_loader: average = np.mean(data_reshaped, axis=0, keepdims=True)
-        # So shape is (1, Features_Flattened)
-        
+        # Reshape logic mirrors data_loader.py
         original_shape = data.shape
         data_reshaped = data.reshape((n * t, -1))
         
@@ -107,31 +192,10 @@ class Model:
             return data
 
         # Output data shape (N, T, C) usually
-        # Our average/std might include all features (including index 4 which is target?)
-        # Wait, in NeuroForcastDataset:
-        # data = data[:, :, 0] if not use_graph (taking first feature)
-        # But normalization happens BEFORE this selection in the dataset class.
-        # So 'average' and 'std' stored in stats.npz correspond to ALL features (e.g. 5 features).
-        
-        # The model output corresponds to the Target (which is usually the first feature, index 0).
-        # So we need to select the mean/std for the first feature to denormalize the output.
-        
-        # average shape from file: (1, Channel * Feature) if flattened?
-        # Let's look at data_loader again.
-        # data_reshaped = data.reshape((n*t, -1)). 
-        # -1 collapses Channel and Feature dimensions.
-        # So average is (1, C*F).
-        
-        # We need to reshape average back to (1, 1, C, F) to extract what we need.
-        # self.input_size is #Channels.
-        # Features? In demo X shape is (..., 5) or similar? 
-        # Beignet: 89 channels. Affi: 239.
-        # Let's infer feature dim from the size of average.
-        
+        # infer feature dim
         if self.average.size % self.input_size == 0:
             num_features = self.average.size // self.input_size
         else:
-            # Fallback
             num_features = 1
             
         # Reshape stats to (1, 1, C, F)
@@ -139,20 +203,13 @@ class Model:
         std_reshaped = self.std.reshape(1, 1, self.input_size, num_features)
         
         # Target is the first feature (index 0)
-        # So we take mean/std for that feature only
         avg_target = avg_reshaped[:, :, :, 0] # (1, 1, C)
         std_target = std_reshaped[:, :, :, 0] # (1, 1, C)
-        
-        # Match output shape (N, T, C)
-        # Broadcast will handle N and T
         
         combine_max = avg_target + 4 * std_target
         combine_min = avg_target - 4 * std_target
         
         denominator = combine_max - combine_min
-        
-        # Formula: norm = 2*(x - min)/denom - 1
-        # x = (norm + 1) * denom / 2 + min
         
         denorm_data = (data + 1) * denominator / 2 + combine_min
         
@@ -169,43 +226,19 @@ class Model:
         self.model.eval()
         
         # Preprocessing:
-        # The demo extracts the first feature if use_graph=False (which seems to be the baseline)
-        # X shape: (B, T, C, F). We need (B, T, C) or similar for the GRU input_size=C.
-        # Let's assume we take the first feature as input, similar to demo: data[:, :, 0]
-        # X is numpy array.
-        
-        # Extract meaningful input (first 10 steps usually, but model expects full sequence?)
-        # Demo "predict" logic isn't explicitly shown as "take 10, predict 10" inside the model class 
-        # but rather it processes the whole sequence.
-        # However, for submission "predict" method:
-        # "Only the first 10 steps have meaningful value. The last 10 steps are masked."
-        # The model needs to return shape (Sample_size, 20, Channel).
-        
-        # Standardize input processing:
-        # Take (B, 20, C, F) -> (B, 20, C) (using 1st feature) to match demo input_size=num_channels
-        
-        if X.ndim == 4:
-            input_tensor = torch.from_numpy(X[:, :, :, 0]).float() # shape (B, 20, C)
-        else:
-            # Fallback if already reduced
-            input_tensor = torch.from_numpy(X).float()
-            
-        input_tensor = input_tensor.to(self.device)
+        # X shape: (B, T, C, F). 
+        # Extract meaningful input based on dataset logic (first feature only for now)
         
         # Normalize Input
-        # Note: X is numpy. We should normalize BEFORE converting to tensor if we use numpy stats.
-        # Let's revert the tensor conversion slightly or do it on numpy X.
-        # But wait, self._normalize expects numpy array.
-        
         X_norm = self._normalize(X)
         
         if X_norm.ndim == 4:
-            input_tensor = torch.from_numpy(X_norm[:, :, :, 0]).float()
+            input_tensor = torch.from_numpy(X_norm[:, :, :, 0]).float() # shape (B, 20, C)
         else:
+            # Fallback if already reduced
             input_tensor = torch.from_numpy(X_norm).float()
             
         input_tensor = input_tensor.to(self.device)
-
         
         # Inference
         with torch.no_grad():
@@ -250,7 +283,6 @@ class Model:
         else:
             weight_path = os.path.join('weights', filename)
 
-        # Resolve paths for Stats
         stats_path_local = os.path.join(os.path.dirname(__file__), 'weights', stats_filename)
         stats_path_submission = os.path.join(os.path.dirname(__file__), stats_filename)
         

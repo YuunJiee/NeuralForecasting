@@ -1,3 +1,4 @@
+
 import torch
 import os
 
@@ -71,16 +72,17 @@ class Trainer():
         return input_data, target_data
 
     def loss_function(self, prediction, target):
+        # Handle Multi-Feature Target (B, T, C, F) vs Single Output (B, T, C)
+        if target.ndim == 4 and prediction.ndim == 3:
+            # Assume we are predicting Feature 0 (Band 0)
+            target = target[..., 0]
+            
         if self.forecasting_mode == 'one_step':
             loss = self.loss_fn(prediction, target)
         else:
             # Multi-step: compare prediction steps with target steps
             # prediction shape: (B, T, C)
             # target shape: (B, T-init_steps, C)
-            # prediction should be sliced to match target time steps if model outputs full sequence
-            
-            # Based on demo logic:
-            # loss = self.loss_fn(prediction[:, self.init_steps:], target)
             loss = self.loss_fn(prediction[:, self.init_steps:], target)
         return loss
 

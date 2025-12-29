@@ -50,8 +50,17 @@ def main():
     parser.add_argument('--dataset', type=str, default='beignet', choices=['beignet', 'affi'], help='Dataset name')
     args = parser.parse_args()
 
+    print("--- Running Model Self-Test ---")
+    
+    # The original code had a duplicate argparse block here.
+    # Assuming the intent was to use the parsed arguments and add the print statement.
+    
+    subject = args.dataset
+    # Correcting the print statement syntax and variable usage
+    print(f"Initializing Model for {subject}...")
+
     # --- Configuration ---
-    dataset_name = args.dataset
+    dataset_name = args.dataset # This line was already present and correctly uses args.dataset
     print(f"Evaluating for dataset: {dataset_name}")
 
     # --- Data Loading ---

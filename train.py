@@ -11,13 +11,14 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.data_loader import load_dataset, NeuroForcastDataset
 from utils.trainer import Trainer
-from model import NFBaseModel
+from model import NFBaseModel, DLinear
 
 import argparse
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='beignet', choices=['beignet', 'affi'], help='Dataset name')
+    parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train')
     args = parser.parse_args()
 
     # --- Configuration ---
@@ -29,7 +30,7 @@ def main():
         num_channels = 239
 
     batch_size = 32
-    num_epochs = 100
+    num_epochs = args.epochs
     learning_rate = 1e-4 # Demo used 1e-4 variables, but optimizer used 0.001 hardcoded. Let's use 0.001
     hidden_size = 1024
     input_size = num_channels
@@ -76,8 +77,9 @@ def main():
         return
 
     # --- Model Setup ---
-    print("Initializing model...")
-    model = NFBaseModel(input_size=input_size, hidden_size=hidden_size)
+    print("Initializing model (DLinear)...")
+    # model = NFBaseModel(input_size=input_size, hidden_size=hidden_size)
+    model = DLinear(input_size=input_size)
     model = model.to(device)
 
     loss_fn = nn.MSELoss(reduction='mean')
