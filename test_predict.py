@@ -48,19 +48,18 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='beignet', choices=['beignet', 'affi'], help='Dataset name')
+    parser.add_argument('--model', type=str, default=None, choices=['amag', 'dlinear_gnn', 'stndt', 'dlinear_stndt'], help='Model architecture')
     args = parser.parse_args()
 
     print("--- Running Model Self-Test ---")
     
-    # The original code had a duplicate argparse block here.
-    # Assuming the intent was to use the parsed arguments and add the print statement.
-    
     subject = args.dataset
+    model_type = args.model
     # Correcting the print statement syntax and variable usage
-    print(f"Initializing Model for {subject}...")
+    print(f"Initializing Model for {subject} ({model_type})...")
 
     # --- Configuration ---
-    dataset_name = args.dataset # This line was already present and correctly uses args.dataset
+    dataset_name = args.dataset 
     print(f"Evaluating for dataset: {dataset_name}")
 
     # --- Data Loading ---
@@ -77,7 +76,7 @@ def main():
     # --- Model Loading ---
     print("Loading model...")
     try:
-        model = Model(monkey_name=dataset_name)
+        model = Model(monkey_name=dataset_name, model_type=model_type)
         model.load()
     except Exception as e:
         print(f"Failed to initialize/load model: {e}")

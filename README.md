@@ -1,39 +1,17 @@
-# Neural Signal Forecasting Project (Baseline GRU)
+# Neural Signal Forecasting Project
 
-This repository contains the full implementation of the Neural Signal Forecasting pipeline for the competition. It includes the baseline GRU model, a robust training framework, and a verification system for correct submission formatting.
+This repository contains the optimized implementation of the Neural Signal Forecasting pipeline. We have moved beyond the simple GRU baseline to dataset-specific architectures that maximize performance.
 
 ---
 
-## 👥 Team Roles & Responsibilities
+## 🏆 Current Performance & Architecture
 
-| Role | Module | Key Responsibilities | Deliverables |
+We adopt a **Structure-based Strategy**, selecting the best model architecture for each subject's unique neural dynamics.
+
+| Dataset | Best Algorithm | R2 Score | Characteristics |
 | :--- | :--- | :--- | :--- |
-| **A (Temporal Lead)** | `models/temporal.py` | Time-series encoding (GRU/Transformer), prediction decoding. | `TemporalBlock` (nn.Module), Feature Embeddings |
-| **B (Spatial Lead)** | `models/spatial.py` | Spatial analysis (EDA), GNN layers, adjacency matrix optimization. | `SpatialBlock` (nn.Module), Adjacency Matrix |
-| **C (Training Lead)** | `utils/trainer.py` | Spectral analysis (EDA), Normalization strategies, Loss function design. | Optimized Hyperparameters (LR, Loss), `stats.npz` |
-| **D (Integration)** | `model.py` | Module integration, Path management, Submission environment compliance. | Valid `submission.zip`, Integrated `Model` class |
-
----
-
-## 📂 Project Structure & File Purpose
-
-**Where should I put my code?**
-
-| Path | Purpose |
-| :--- | :--- |
-| **`models/`** | **Model Definitions** |
-| `models/temporal.py` | **(Role A)** Time-series encoder (GRU, Transformer). Process `(Batch, Time, Channel)` data. |
-| `models/spatial.py` | **(Role B)** Spatial encoder (GNN, CNN). Process brain topology & connectivity. |
-| `models/hybrid_model.py` | **(Role D)** The "Motherboard" that connects Temporal and Spatial modules together. |
-| **`notebooks/`** | **EDA & Experiments** |
-| `notebooks/*.ipynb` | **(All Roles)** Place all Exploratory Data Analysis here (e.g., FFT, Spectrograms). |
-| **`utils/`** | **Helper Functions** |
-| `utils/data_loader.py` | Data loading, splitting, and `NeuroForcastDataset` class. |
-| `utils/trainer.py` | **(Role C)** The training loop, validation logic, and loss calculation. |
-| **`Root`** | **Execution & Submission** |
-| `model.py` | **[CRITICAL]** The submission wrapper. Must import from `models/` and load weights. |
-| `train.py` | Main script to run training (generates `weights/`). |
-| `test_predict.py` | Script to evaluate model performance (MSE/R2). |
+| **Beignet** | **DLinear + GNN** | **~0.841** | High non-stationary drift. `DLinear` handles trend; `GNN` handles spatial correlation. |
+| **Affi** | **AMAG (GRU + GNN)** | **~0.852** | Complex non-linear dynamics. `GRU` captures temporal patterns; `GNN` handles connectivity. |
 
 ---
 
@@ -47,61 +25,58 @@ conda activate neural_forecasting
 pip install -r requirements.txt
 ```
 
-### 2. Data Preparation
+### 2. Training (Reproducing Results)
 
-Ensure the following data files are in the `data/` directory:
-- `train_data_beignet.npz`
-- `train_data_affi.npz`
+You can train the specific models using the `--model` argument.
 
-### 3. Training
-
-Train the model (Generates weights and normalization stats):
-
+**Train Beignet (DLinear + GNN):**
 ```bash
-# Train Monkey 'beignet'
-python train.py --dataset beignet
+python train.py --dataset beignet --model dlinear_gnn --epochs 300
+```
+*   *Note: Uses LR=1e-3 for optimal convergence.*
 
-# Train Monkey 'affi'
-python train.py --dataset affi
+**Train Affi (AMAG):**
+```bash
+python train.py --dataset affi --model amag --epochs 300
 ```
 
-### 4. Evaluation
+### 3. Evaluation
 
-Verify performance on the validation set:
+The `test_predict.py` script and `model.py` are now "smart". They will automatically select the best architecture based on the dataset name.
 
 ```bash
-python test_predict.py
+# Evaluate Beignet (Auto-selects DLinear+GNN)
+python test_predict.py --dataset beignet
+
+# Evaluate Affi (Auto-selects AMAG)
+python test_predict.py --dataset affi
 ```
 
 ---
 
-## 📊 Current Baseline Performance (GRU)
+## 📂 Submission Guide
 
-| Dataset | Split | MSE | R2 Score | Note |
-|:---:|:---:|:---:|:---:|:---:|
-| **Beignet** | Val (Forecasting) | ~110,951 | **0.7506** | Baseline (Normalized Input/Output) |
-| **Affi** | Val (Forecasting) | ~59,784 | **0.8154** | Baseline (Normalized Input/Output) |
+For the competition/leaderboard submission, you only need to upload the following files. The logic in `model.py` is self-contained and handles model selection/weight loading automatically.
 
-> **Note:** The high MSE is due to the denormalization of the output to the original biological signal scale. The high R2 score confirms that the model is correctly predicting the trends.
+### Required Files
+1.  **`model.py`** (The inference logic)
+2.  **`model_beignet_dlinear_gnn.pth`** (Beignet Weights)
+3.  **`stats_beignet_dlinear_gnn.npz`** (Beignet Normalization Stats)
+4.  **`model_affi.pth`** (Affi Weights)
+5.  **`stats_affi.npz`** (Affi Normalization Stats)
 
----
-
-## 📝 Submission Guidelines
-
-To submit to the competition platform, compress the following into a **single zip file**:
-
-1. `model.py`
-2. `weights/model_beignet.pth`
-3. `weights/stats_beignet.npz`
-4. `weights/model_affi.pth`
-5. `weights/stats_affi.npz`
-
-**Important:** The `model.py` submission file is pre-configured to automatically load the correct weights and normalization statistics for each monkey.
+> **Note**: `model.py` looks for weights in the same directory (for submission platform) OR in `weights/` directory (for local dev).
 
 ---
 
-## 🛠 Development Roadmap
+## 🛠 Project Structure
 
-- [x] **Phase 1: Baseline** - Implement GRU model with correct normalization pipeline (Completed by Role C & D).
-- [ ] **Phase 2: Feature Expansion** - Use all 5 input features (currently using only 1). **[High Impact]**
-- [ ] **Phase 3: Architecture** - Implement Transformer / GNN for better spatial-temporal modeling.
+| File | Purpose |
+| :--- | :--- |
+| `model.py` | **Core Inference Script**. Contains `DLinearGNNModel` and `AMAGModel` classes. Submission entry point. |
+| `train.py` | Training script. Supports `--model` argument to switch architectures. |
+| `test_predict.py` | Evaluation script. Calculates R2/MSE on validation set. |
+| `utils/trainer.py` | Contains `Trainer` and `AdvancedTrainer` classes. |
+| `utils/graph_utils.py`| Computes Pearson Correlation for GNN initialization. |
+| `weights/` | Directory storing trained model weights (`.pth`) and stats (`.npz`). |
+| `RELAY_LOG.md` | Development log tracking experiments and decisions. |
