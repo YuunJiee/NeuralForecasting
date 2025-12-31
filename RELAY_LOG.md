@@ -47,22 +47,28 @@ We moved from a "One Model Fits All" approach to a **Structure-based Strategy**:
 # Relay Handoff Log - Day 2 (Part 2: The Calibration Victory)
 
 **Author**: Yuunjiee (with AI Advisor)
-**Date**: 2025-12-30 (Afternoon)
+**Date**: 2025-12-30 (Pro)
 
-## Critical Finding: Affi Bias
-After analyzing the leaderboard ranking, we discovered `Affi` MSE was higher than expected despite high R2.
-*   **Investigation**: `scripts/investigate_bias.py` revealed a systematic **negative bias of -12.057**. The model was consistently under-predicting the magnitude.
-*   **Root Cause**: Likely due to the heavy `Dropout` or `Normalization` shift in the GRU during training not perfectly aligning with the validation distribution.
+## Critical Finding: Affi Bias & Post-Processing
+We followed the "Inference-only" optimization strategy to squeeze out performance without re-training.
 
-## Final Solution: Test-Time Calibration
-We implemented a hard-coded calibration in `model.py`'s `predict()` function:
-```python
-if self.monkey_name == 'affi':
-    prediction = prediction + 12.057
-```
-*   **Result**: Bias reduced to **~0.0**. MSE dropped from 51,261 to **51,115**.
+### 1. Affi Calibration (Bias Correction)
+*   **Issue**: Systematic negative bias (-12.057) detected.
+*   **Fix**: Added `prediction += 12.057` in `model.py`.
+*   **Result**: Bias ~0. MSE reduced from 51,261 -> **51,110**.
+
+### 2. Temporal Smoothing (EMA)
+*   **Issue**: High frequency noise in predictions.
+*   **Fix**: Applied Exponential Moving Average (EMA) to the prediction window (steps 10-19).
+    *   **Beignet**: Strong drift needs smoothing. Used `Alpha=0.6`. **MSE reduced by ~1000 (70.5k -> 69.6k)**.
+    *   **Affi**: Complex dynamics need less smoothing. Used `Alpha=0.9`. Slight stability improvement.
+
+## Final Validated Scores
+| Dataset | Strategy | Final MSE | R2 Score |
+| :--- | :--- | :--- | :--- |
+| **Beignet** | DLinear+GNN + EMA(0.6) | **69,605** | **0.8435** |
+| **Affi** | AMAG + Bias(+12) + EMA(0.9) | **51,108** | **0.8422** |
 
 ## Next Person Action Items
-*   **Do NOT Re-train Affi** unless necessary. The current weights + calibration are optimal.
-*   **Beignet**: `DLinear` requires high LR (1e-3). If re-training, check `train.py`.
-*   **Submission**: Submit `model.py` and the 4 weight files. The code automatically handles everything.
+*   **Do NOT Re-train**. The current weights + `model.py` logic are optimal.
+*   **Submission**: Submit `model.py` and the 4 weight files.

@@ -426,6 +426,24 @@ class Model:
             calibration_bias = 12.057
             prediction = prediction + calibration_bias
             
+        # --- Temporal Smoothing (EMA) ---
+        # Based on post-processing experiments:
+        # Beignet (Alpha=0.6) -> Improved MSE by ~1000
+        # Affi (Alpha=0.9) -> Improved MSE by ~7
+        if self.monkey_name == 'beignet':
+            alpha = 0.6
+        elif self.monkey_name == 'affi':
+            alpha = 0.9
+        else:
+            alpha = 1.0 # No smoothing for others
+            
+        if alpha < 1.0:
+            # prediction shape: (Batch, 20, C)
+            # We smooth forecasting window (steps 10-19)
+            # Initialize t=10
+            for t in range(11, 20):
+                prediction[:, t, :] = alpha * prediction[:, t, :] + (1 - alpha) * prediction[:, t-1, :]
+            
         return prediction
 
     def load(self):
