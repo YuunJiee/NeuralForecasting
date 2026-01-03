@@ -38,6 +38,29 @@ class Trainer():
         self.model.to(device)
         self.scheduler = scheduler
 
+        # Curriculum Learning: dynamic loss switching
+        # curriculum_config = {'switch_epoch': int, 'initial_loss_fn': nn.Module, 'final_loss_fn': nn.Module}
+        self.curriculum_config = None
+        self.current_loss_fn = self.loss_fn
+        
+        # Check if we have extended args (quick hack or standard way?)
+        # Better to have it passed explicitly or via kwargs, but let's assume it's set later or passed in wrapper?
+        # Actually, let's just add a method to set it, or update signature?
+        # Let's keep signature simple and allow setting attribute or kwargs if we want.
+        # But wait, I can just update the signature since I control train.py too.
+    
+    def set_curriculum(self, switch_epoch, initial_loss_fn, final_loss_fn):
+        self.curriculum_config = {
+            'switch_epoch': switch_epoch,
+            'initial_loss_fn': initial_loss_fn,
+            'final_loss_fn': final_loss_fn
+        }
+        if switch_epoch > 0:
+            print(f"Curriculum: Using {type(initial_loss_fn).__name__} for first {switch_epoch} epochs, then {type(final_loss_fn).__name__}")
+            self.current_loss_fn = initial_loss_fn
+        else:
+            self.current_loss_fn = final_loss_fn
+
         self.train_loss = []
         self.test_loss = []
         self.val_loss = []
@@ -78,16 +101,23 @@ class Trainer():
             target = target[..., 0]
             
         if self.forecasting_mode == 'one_step':
-            loss = self.loss_fn(prediction, target)
+            loss = self.current_loss_fn(prediction, target)
         else:
             # Multi-step: compare prediction steps with target steps
             # prediction shape: (B, T, C)
             # target shape: (B, T-init_steps, C)
-            loss = self.loss_fn(prediction[:, self.init_steps:], target)
+            loss = self.current_loss_fn(prediction[:, self.init_steps:], target)
         return loss
 
     def train(self, num_epochs):
         for epoch in range(num_epochs):
+            # Curriculum Check
+            if self.curriculum_config:
+                switch_epoch = self.curriculum_config['switch_epoch']
+                if epoch == switch_epoch:
+                    print(f"Curriculum: Switching loss function from {type(self.current_loss_fn).__name__} to {type(self.curriculum_config['final_loss_fn']).__name__}")
+                    self.current_loss_fn = self.curriculum_config['final_loss_fn']
+
             self.model.train()
             train_loss = 0.0
             for batch in self.train_data_loader:

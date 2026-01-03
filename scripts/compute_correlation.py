@@ -8,9 +8,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.data_loader import load_dataset
 
 def main():
-    dataset_name = 'beignet'
+    dataset_name = 'affi'
     data_filename = f'train_data_{dataset_name}.npz'
-    input_dir = './data'
+    input_dir = '../data'
     
     if not os.path.exists(os.path.join(input_dir, data_filename)):
         print(f"Data file {data_filename} not found.")

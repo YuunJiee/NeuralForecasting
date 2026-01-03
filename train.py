@@ -12,7 +12,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils.data_loader import load_dataset, NeuroForcastDataset
 from utils.trainer import Trainer, AdvancedTrainer
 from utils.graph_utils import get_pearson_correlation
-from model import NFBaseModel, DLinear, AMAGModel, DLinearGNNModel, STNDTModel, DLinearSTNDTModel
+from utils.loss import WeightedMSELoss, FocalMSELoss
+from model import NFBaseModel, DLinear, AMAGModel, DLinearGNNModel
 
 import argparse
 
@@ -20,7 +21,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='beignet', choices=['beignet', 'affi'], help='Dataset name')
     parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train')
-    parser.add_argument('--model', type=str, default='amag', choices=['amag', 'dlinear_gnn', 'stndt', 'dlinear_stndt'], help='Model architecture')
+    parser.add_argument('--model', type=str, default='amag', choices=['amag', 'dlinear_gnn'], help='Model architecture')
+    parser.add_argument('--loss_type', type=str, default='mse', choices=['mse', 'weighted_mse', 'focal_mse'], help='Loss function type')
+    parser.add_argument('--alpha', type=float, default=1.0, help='Alpha parameter for weighted/focal loss')
+    parser.add_argument('--gamma', type=float, default=1.0, help='Gamma parameter for focal loss')
+    parser.add_argument('--loss_switch_epoch', type=int, default=-1, help='Epoch to switch from Huber to selected loss')
+    parser.add_argument('--huber_delta', type=float, default=1.0, help='Delta for Huber Loss')
     args = parser.parse_args()
 
     # --- Configuration ---
@@ -43,15 +49,15 @@ def main():
 
     # --- Hyperparameters ---
     # Model-specific Learning Rates
-    if model_type in ['stndt', 'dlinear_stndt']:
-        learning_rate = 1e-4 # Transformers need lower LR
-    else:
-        learning_rate = 1e-3 # DLinear/AMAG work better with 1e-3
+    learning_rate = 1e-3 # DLinear/AMAG work better with 1e-3
         
     print(f"Learning Rate: {learning_rate}")
 
     # --- Data Loading ---
     data_filename = f'train_data_{dataset_name}.npz'
+    
+    # Ensure weights directory exists
+    os.makedirs('weights', exist_ok=True)
     
     # Check if data exists
     if not os.path.exists(os.path.join('./data', data_filename)):
@@ -124,14 +130,28 @@ def main():
         
     model = model.to(device)
 
-    loss_fn = nn.MSELoss(reduction='mean')
+    if args.loss_type == 'weighted_mse':
+        print(f"Using WeightedMSELoss (alpha={args.alpha})")
+        loss_fn = WeightedMSELoss(alpha=args.alpha, reduction='mean')
+    elif args.loss_type == 'focal_mse':
+        print(f"Using FocalMSELoss (alpha={args.alpha}, gamma={args.gamma})")
+        loss_fn = FocalMSELoss(alpha=args.alpha, gamma=args.gamma, reduction='mean')
+    else:
+        print("Using standard MSELoss")
+        loss_fn = nn.MSELoss(reduction='mean')
+
+    # Curriculum Setup
+    if args.loss_switch_epoch > 0:
+        print(f"Curriculum enabled: Huber Loss (delta={args.huber_delta}) -> {args.loss_type} at epoch {args.loss_switch_epoch}")
+        initial_loss_fn = nn.HuberLoss(delta=args.huber_delta, reduction='mean')
+    else:
+        initial_loss_fn = None
+
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
     
     # --- Training ---
     print("Starting training...")
-    # Ensure weights directory exists
-    os.makedirs('weights', exist_ok=True)
     if model_type == 'amag':
         save_path = os.path.join('weights', f'model_{dataset_name}.pth')
     else:
@@ -171,6 +191,14 @@ def main():
             save_path=save_path # No checkpoint loading for now
         )
     
+    # Apply Curriculum
+    if initial_loss_fn is not None:
+        trainer.set_curriculum(
+            switch_epoch=args.loss_switch_epoch,
+            initial_loss_fn=initial_loss_fn,
+            final_loss_fn=loss_fn
+        )
+
     trainer.train(num_epochs)
     print("Training complete.")
 

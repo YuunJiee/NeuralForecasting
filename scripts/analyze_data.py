@@ -90,9 +90,10 @@ def analyze_bands(filepath, dataset_name):
         print(f"Error analyzing {filepath}: {e}")
 
 def main():
-    data_dir = 'data'
+    data_dir = '../data'
     files = {
         'beignet': 'train_data_beignet.npz',
+        'affi': 'train_data_affi.npz'
     }
     
     os.makedirs('results/figures', exist_ok=True)
