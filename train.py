@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--gamma', type=float, default=1.0, help='Gamma parameter for focal loss')
     parser.add_argument('--loss_switch_epoch', type=int, default=-1, help='Epoch to switch from Huber to selected loss')
     parser.add_argument('--huber_delta', type=float, default=1.0, help='Delta for Huber Loss')
+    parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability')
     args = parser.parse_args()
 
     # --- Configuration ---
@@ -120,7 +121,7 @@ def main():
     # Let's instantiate based on model_type argument logic consistent with model.py classes.
     
     if model_type == 'dlinear_gnn':
-        model = DLinearGNNModel(num_nodes=input_size, adj_init=adj_init)
+        model = DLinearGNNModel(num_nodes=input_size, adj_init=adj_init, dropout=args.dropout)
     elif model_type == 'stndt':
         model = STNDTModel(num_nodes=input_size)
     elif model_type == 'dlinear_stndt':
@@ -148,7 +149,9 @@ def main():
         initial_loss_fn = None
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    print("Using ReduceLROnPlateau Scheduler")
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=15, cooldown=5, min_lr=1e-6)
     
     # --- Training ---
     print("Starting training...")

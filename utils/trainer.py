@@ -132,15 +132,21 @@ class Trainer():
                 self.optimizer.step()
                 train_loss += loss.item()
             
+            # Validation (Run every epoch to support ReduceLROnPlateau)
+            self.model.eval()
+            val_loss = self.validation()
+            val_loss_avg = val_loss / len(self.val_data_loader)
+            self.model.train()
+
             # Step scheduler if it exists
             if self.scheduler:
-                self.scheduler.step()
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    self.scheduler.step(val_loss_avg)
+                else:
+                    self.scheduler.step()
 
             if epoch % 10 == 0 or epoch == num_epochs - 1:
-                self.model.eval()
-                val_loss = self.validation()
-                self.model.train()
-                print(f'Epoch {epoch}, Train Loss: {train_loss / len(self.train_data_loader):.6f}, Val Loss:{val_loss / len(self.val_data_loader):.6f}')
+                print(f'Epoch {epoch}, Train Loss: {train_loss / len(self.train_data_loader):.6f}, Val Loss:{val_loss_avg:.6f}')
         
         # Save model after training
         if self.save_path:
@@ -327,15 +333,21 @@ class AdvancedTrainer(Trainer):
                 recon_loss_acc += loss_recon.item()
                 contrast_loss_acc += loss_contrast.item()
             
+            # Validation (Run every epoch)
+            self.model.eval()
+            # Use standard validation logic (no masking) for fair comparison
+            val_loss = self.validation() 
+            val_loss_avg = val_loss / len(self.val_data_loader)
+            self.model.train()
+
             if self.scheduler:
-                self.scheduler.step()
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    self.scheduler.step(val_loss_avg)
+                else:
+                    self.scheduler.step()
 
             if epoch % 10 == 0 or epoch == num_epochs - 1:
-                self.model.eval()
-                # Use standard validation logic (no masking) for fair comparison
-                val_loss = self.validation() 
-                self.model.train()
-                print(f'Epoch {epoch}, Loss: {train_loss/len(self.train_data_loader):.4f} (Main), {recon_loss_acc/len(self.train_data_loader):.4f} (Recon), {contrast_loss_acc/len(self.train_data_loader):.4f} (Contr) | Val: {val_loss/len(self.val_data_loader):.6f}')
+                print(f'Epoch {epoch}, Loss: {train_loss/len(self.train_data_loader):.4f} (Main), {recon_loss_acc/len(self.train_data_loader):.4f} (Recon), {contrast_loss_acc/len(self.train_data_loader):.4f} (Contr) | Val: {val_loss_avg:.6f}')
         
         if self.save_path:
             self.save_model()
