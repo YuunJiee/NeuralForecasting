@@ -1,0 +1,55 @@
+{
+  "os":  "Linux-6.14.0-34-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.10.19",
+  "startedAt":  "2026-01-05T12:10:07.443600Z",
+  "args":  [
+    "--epochs",
+    "150",
+    "--dataset",
+    "affi",
+    "--alpha",
+    "1.0"
+  ],
+  "program":  "/home/annie/NeuralForecasting/train.py",
+  "codePath":  "train.py",
+  "codePathLocal":  "train.py",
+  "git":  {
+    "remote":  "https://github.com/YuunJiee/NeuralForecasting.git",
+    "commit":  "24d2db2b76991d6cfc50fa7404a64ab1d55399eb"
+  },
+  "email":  "tzuhsuan5684@gmail.com",
+  "root":  "/home/annie/NeuralForecasting",
+  "host":  "kslab-dev-server",
+  "executable":  "/home/annie/miniconda3/envs/neural_forecasting/bin/python",
+  "cpu_count":  16,
+  "cpu_count_logical":  24,
+  "gpu":  "NVIDIA GeForce RTX 4090",
+  "gpu_count":  2,
+  "disk":  {
+    "/":  {
+      "total":  "489997189120",
+      "used":  "66490392576"
+    }
+  },
+  "memory":  {
+    "total":  "67221581824"
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 4090",
+      "memoryTotal":  "25757220864",
+      "cudaCores":  16384,
+      "architecture":  "Ada",
+      "uuid":  "GPU-234165ac-6cc3-2a6b-93ee-7f9980e58c90"
+    },
+    {
+      "name":  "NVIDIA GeForce RTX 3060",
+      "memoryTotal":  "12884901888",
+      "cudaCores":  3584,
+      "architecture":  "Ampere",
+      "uuid":  "GPU-02cb0d7a-f2df-2547-abf0-b0f13bec5cc8"
+    }
+  ],
+  "cudaVersion":  "13.0",
+  "writerId":  "orb4cdkhbk2yr2kw412s0qvssv6ks500"
+}

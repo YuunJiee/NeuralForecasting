@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import os
 import sys
+import wandb
 
 # Ensure project root is in path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -12,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils.data_loader import load_dataset, NeuroForcastDataset
 from utils.trainer import Trainer, AdvancedTrainer
 from utils.graph_utils import get_pearson_correlation
-from utils.loss import WeightedMSELoss, FocalMSELoss
+from utils.loss import WeightedMSELoss
 from model import NFBaseModel, DLinear, AMAGModel, DLinearGNNModel
 
 import argparse
@@ -22,11 +23,7 @@ def main():
     parser.add_argument('--dataset', type=str, default='beignet', choices=['beignet', 'affi'], help='Dataset name')
     parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train')
     parser.add_argument('--model', type=str, default='amag', choices=['amag', 'dlinear_gnn'], help='Model architecture')
-    parser.add_argument('--loss_type', type=str, default='mse', choices=['mse', 'weighted_mse', 'focal_mse'], help='Loss function type')
-    parser.add_argument('--alpha', type=float, default=1.0, help='Alpha parameter for weighted/focal loss')
-    parser.add_argument('--gamma', type=float, default=1.0, help='Gamma parameter for focal loss')
-    parser.add_argument('--loss_switch_epoch', type=int, default=-1, help='Epoch to switch from Huber to selected loss')
-    parser.add_argument('--huber_delta', type=float, default=1.0, help='Delta for Huber Loss')
+    parser.add_argument('--alpha', type=float, default=1.0, help='Alpha parameter for weighted loss')
     parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability')
     args = parser.parse_args()
 
@@ -44,14 +41,28 @@ def main():
     input_size = num_channels
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    print(f"Device: {device}")
-    print(f"Dataset: {dataset_name}")
-    print(f"Model Type: {model_type}")
-
     # --- Hyperparameters ---
     # Model-specific Learning Rates
     learning_rate = 1e-3 # DLinear/AMAG work better with 1e-3
-        
+
+    # --- WandB Init ---
+    run = wandb.init(
+        # Set the wandb project where this run will be logged.
+        project="NSF neural forecasting",
+        # Track hyperparameters and run metadata.
+        config={
+            "learning_rate": learning_rate,
+            "architecture": model_type,
+            "dataset": dataset_name,
+            "epochs": num_epochs,
+            "loss_type": "weighted_mse"
+        },
+    )
+    print(f"WandB initialized: {wandb.run.name}")
+    
+    print(f"Device: {device}")
+    print(f"Dataset: {dataset_name}")
+    print(f"Model Type: {model_type}")
     print(f"Learning Rate: {learning_rate}")
 
     # --- Data Loading ---
@@ -122,36 +133,19 @@ def main():
     
     if model_type == 'dlinear_gnn':
         model = DLinearGNNModel(num_nodes=input_size, adj_init=adj_init, dropout=args.dropout)
-    elif model_type == 'stndt':
-        model = STNDTModel(num_nodes=input_size)
-    elif model_type == 'dlinear_stndt':
-        model = DLinearSTNDTModel(num_nodes=input_size)
     else:
         model = AMAGModel(num_nodes=input_size, adj_init=adj_init)
         
     model = model.to(device)
 
-    if args.loss_type == 'weighted_mse':
-        print(f"Using WeightedMSELoss (alpha={args.alpha})")
-        loss_fn = WeightedMSELoss(alpha=args.alpha, reduction='mean')
-    elif args.loss_type == 'focal_mse':
-        print(f"Using FocalMSELoss (alpha={args.alpha}, gamma={args.gamma})")
-        loss_fn = FocalMSELoss(alpha=args.alpha, gamma=args.gamma, reduction='mean')
-    else:
-        print("Using standard MSELoss")
-        loss_fn = nn.MSELoss(reduction='mean')
-
-    # Curriculum Setup
-    if args.loss_switch_epoch > 0:
-        print(f"Curriculum enabled: Huber Loss (delta={args.huber_delta}) -> {args.loss_type} at epoch {args.loss_switch_epoch}")
-        initial_loss_fn = nn.HuberLoss(delta=args.huber_delta, reduction='mean')
-    else:
-        initial_loss_fn = None
+    print(f"Using WeightedMSELoss (alpha={args.alpha})")
+    loss_fn = WeightedMSELoss(alpha=args.alpha, reduction='mean')
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
-    print("Using ReduceLROnPlateau Scheduler")
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=15, cooldown=5, min_lr=1e-6)
+    print("Using Cosine Annealing Scheduler")
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=15, cooldown=5, min_lr=1e-6)
     
     # --- Training ---
     print("Starting training...")
@@ -161,46 +155,23 @@ def main():
         save_path = os.path.join('weights', f'model_{dataset_name}_{model_type}.pth')
     
     # Select Trainer
-    if model_type in ['stndt', 'dlinear_stndt']:
-        print("Using AdvancedTrainer (Masking + Contrastive Loss)")
-        trainer = AdvancedTrainer(
-            model=model,
-            train_data_loader=train_loader,
-            test_data_loader=test_loader,
-            val_data_loader=val_loader,
-            loss_fn=loss_fn,
-            optimizer=optimizer,
-            device=device,
-            scheduler=scheduler,
-            forecasting_mode='multi_step',
-            init_steps=10,
-            save_path=save_path, # No checkpoint loading for now
-            mask_ratio=0.15,
-            lambda_recon=0.5,
-            lambda_contrast=0.1
-        )
-    else:
-        trainer = Trainer(
-            model=model,
-            train_data_loader=train_loader,
-            test_data_loader=test_loader,
-            val_data_loader=val_loader,
-            loss_fn=loss_fn,
-            optimizer=optimizer,
-            device=device,
-            scheduler=scheduler,
-            forecasting_mode='multi_step',
-            init_steps=10,
-            save_path=save_path # No checkpoint loading for now
-        )
+    trainer = Trainer(
+        model=model,
+        train_data_loader=train_loader,
+        test_data_loader=test_loader,
+        val_data_loader=val_loader,
+        loss_fn=loss_fn,
+        optimizer=optimizer,
+        device=device,
+        scheduler=scheduler,
+        forecasting_mode='multi_step',
+        init_steps=10,
+        save_path=save_path, # No checkpoint loading for now
+        run=run
+    )
     
     # Apply Curriculum
-    if initial_loss_fn is not None:
-        trainer.set_curriculum(
-            switch_epoch=args.loss_switch_epoch,
-            initial_loss_fn=initial_loss_fn,
-            final_loss_fn=loss_fn
-        )
+
 
     trainer.train(num_epochs)
     print("Training complete.")

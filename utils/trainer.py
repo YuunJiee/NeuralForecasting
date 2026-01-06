@@ -1,11 +1,12 @@
 
 import torch
 import os
+import wandb
 
 class Trainer():
     def __init__(self, model, train_data_loader, test_data_loader,
                val_data_loader, loss_fn, optimizer, device, scheduler,
-               forecasting_mode, init_steps=10, save_path='', ckpt_path=None):
+               forecasting_mode, init_steps=10, save_path='', run=None, ckpt_path=None):
         """
         Args:
           model: model to train
@@ -31,6 +32,7 @@ class Trainer():
 
         self.save_path = save_path
         self.ckpt_path = ckpt_path
+        self.run = run
         
         if ckpt_path is not None and os.path.exists(ckpt_path):
             self.load_model(ckpt_path)
@@ -109,7 +111,8 @@ class Trainer():
             loss = self.current_loss_fn(prediction[:, self.init_steps:], target)
         return loss
 
-    def train(self, num_epochs):
+    def train(self, num_epochs, run=None):
+        run = run or self.run
         for epoch in range(num_epochs):
             # Curriculum Check
             if self.curriculum_config:
@@ -145,8 +148,16 @@ class Trainer():
                 else:
                     self.scheduler.step()
 
+            if run:
+                run.log({
+                    "train_loss": train_loss / len(self.train_data_loader),
+                    "val_loss": val_loss_avg,
+                    "epoch": epoch
+                })
             if epoch % 10 == 0 or epoch == num_epochs - 1:
                 print(f'Epoch {epoch}, Train Loss: {train_loss / len(self.train_data_loader):.6f}, Val Loss:{val_loss_avg:.6f}')
+        if run:
+            run.finish()
         
         # Save model after training
         if self.save_path:
@@ -196,7 +207,7 @@ class AdvancedTrainer(Trainer):
                mask_ratio=0.15, lambda_recon=0.5, lambda_contrast=0.1):
         super(AdvancedTrainer, self).__init__(model, train_data_loader, test_data_loader,
                val_data_loader, loss_fn, optimizer, device, scheduler,
-               forecasting_mode, init_steps, save_path, ckpt_path)
+               forecasting_mode, init_steps, save_path, ckpt_path=ckpt_path)
         
         self.mask_ratio = mask_ratio
         self.lambda_recon = lambda_recon

@@ -1,0 +1,31 @@
+WandB initialized: ethereal-snow-15
+Device: cuda
+Dataset: beignet
+Model Type: dlinear_gnn
+Learning Rate: 0.001
+Loading data...
+Saved training stats to weights/stats_beignet_dlinear_gnn.npz
+Train samples: 560
+Val samples: 70
+Computing Pearson Correlation Matrix...
+Computed Pearson Matrix with shape: torch.Size([89, 89])
+Initializing model (dlinear_gnn)...
+Using WeightedMSELoss (alpha=1.0)
+Using Cosine Annealing Scheduler
+Starting training...
+Epoch 0, Train Loss: 0.170673, Val Loss:0.101337
+Epoch 10, Train Loss: 0.044850, Val Loss:0.029063
+Epoch 20, Train Loss: 0.038069, Val Loss:0.024746
+Epoch 30, Train Loss: 0.035818, Val Loss:0.023428
+Epoch 40, Train Loss: 0.034051, Val Loss:0.022538
+Epoch 50, Train Loss: 0.033402, Val Loss:0.022226
+Epoch 60, Train Loss: 0.032354, Val Loss:0.022057
+Epoch 70, Train Loss: 0.032279, Val Loss:0.021987
+Epoch 80, Train Loss: 0.032438, Val Loss:0.021896
+Epoch 90, Train Loss: 0.032218, Val Loss:0.021827
+Epoch 100, Train Loss: 0.032167, Val Loss:0.021817
+Epoch 110, Train Loss: 0.031794, Val Loss:0.021761
+Epoch 120, Train Loss: 0.031621, Val Loss:0.021798
+Epoch 130, Train Loss: 0.031502, Val Loss:0.021783
+Epoch 140, Train Loss: 0.031766, Val Loss:0.021773
+Epoch 149, Train Loss: 0.031851, Val Loss:0.021764

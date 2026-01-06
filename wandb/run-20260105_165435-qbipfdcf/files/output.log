@@ -1,0 +1,45 @@
+WandB initialized: fearless-fire-2
+Device: cuda
+Dataset: beignet
+Model Type: dlinear_gnn
+Learning Rate: 0.001
+Loading data...
+Saved training stats to weights/stats_beignet_dlinear_gnn.npz
+Train samples: 560
+Val samples: 70
+Computing Pearson Correlation Matrix...
+Computed Pearson Matrix with shape: torch.Size([89, 89])
+Initializing model (dlinear_gnn)...
+Using WeightedMSELoss (alpha=1.0)
+Starting training...
+Epoch 0, Train Loss: 0.295290, Val Loss:0.251884
+Epoch 10, Train Loss: 0.055591, Val Loss:0.051094
+Epoch 20, Train Loss: 0.036196, Val Loss:0.034463
+Epoch 30, Train Loss: 0.031733, Val Loss:0.030621
+Epoch 40, Train Loss: 0.030095, Val Loss:0.028742
+Epoch 50, Train Loss: 0.028584, Val Loss:0.027460
+Epoch 60, Train Loss: 0.028276, Val Loss:0.026897
+Epoch 70, Train Loss: 0.027880, Val Loss:0.026395
+Epoch 80, Train Loss: 0.027381, Val Loss:0.025969
+Epoch 90, Train Loss: 0.026961, Val Loss:0.025604
+Epoch 100, Train Loss: 0.026653, Val Loss:0.025302
+Epoch 110, Train Loss: 0.026752, Val Loss:0.025162
+Epoch 120, Train Loss: 0.026444, Val Loss:0.025027
+Epoch 130, Train Loss: 0.026495, Val Loss:0.024898
+Epoch 140, Train Loss: 0.026185, Val Loss:0.024748
+Epoch 150, Train Loss: 0.026142, Val Loss:0.024647
+Epoch 160, Train Loss: 0.026052, Val Loss:0.024584
+Epoch 170, Train Loss: 0.026093, Val Loss:0.024523
+Epoch 180, Train Loss: 0.025957, Val Loss:0.024473
+Epoch 190, Train Loss: 0.025940, Val Loss:0.024426
+Epoch 200, Train Loss: 0.025976, Val Loss:0.024345
+Epoch 210, Train Loss: 0.025776, Val Loss:0.024322
+Epoch 220, Train Loss: 0.025871, Val Loss:0.024295
+Epoch 230, Train Loss: 0.025739, Val Loss:0.024272
+Epoch 240, Train Loss: 0.025781, Val Loss:0.024249
+Epoch 250, Train Loss: 0.025731, Val Loss:0.024223
+Epoch 260, Train Loss: 0.025811, Val Loss:0.024206
+Epoch 270, Train Loss: 0.025806, Val Loss:0.024191
+Epoch 280, Train Loss: 0.025619, Val Loss:0.024178
+Epoch 290, Train Loss: 0.025742, Val Loss:0.024162
+Epoch 299, Train Loss: 0.025700, Val Loss:0.024151

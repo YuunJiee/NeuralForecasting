@@ -63,6 +63,8 @@ class DLinear(nn.Module):
             self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
             self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
 
+        self.dropout = nn.Dropout(0.0) # Default dropout 0.0 for DLinear if not specified
+
     def forward(self, x):
         # x shape: (Batch, 20, C)
         # Slice the real input (first 10 steps)
@@ -84,8 +86,8 @@ class DLinear(nn.Module):
                 seasonal_output[:, i, :] = self.Linear_Seasonal[i](seasonal_init[:, i, :])
                 trend_output[:, i, :] = self.Linear_Trend[i](trend_init[:, i, :])
         else:
-            seasonal_output = self.Linear_Seasonal(seasonal_init)
-            trend_output = self.Linear_Trend(trend_init)
+            seasonal_output = self.dropout(self.Linear_Seasonal(seasonal_init))
+            trend_output = self.dropout(self.Linear_Trend(trend_init))
 
         x_out = seasonal_output + trend_output
         
@@ -190,6 +192,10 @@ class AMAGModel(nn.Module):
         
         return output
 
+ 
+
+
+
 class DLinearGNNModel(nn.Module):
     """
     Hybrid DLinear + GNN Model
@@ -198,7 +204,7 @@ class DLinearGNNModel(nn.Module):
     3. GNN Interaction (Space) applied to both components
     4. Recomposition
     """
-    def __init__(self, num_nodes, input_len=10, pred_len=10, adj_init=None):
+    def __init__(self, num_nodes, input_len=10, pred_len=10, adj_init=None, dropout=0.0):
         super(DLinearGNNModel, self).__init__()
         self.num_nodes = num_nodes
         self.input_len = input_len
@@ -210,11 +216,20 @@ class DLinearGNNModel(nn.Module):
         # Linear Mapping (Time) for Seasonal and Trend
         # Input: (Batch, Node, InputLen) -> Output: (Batch, Node, PredLen)
         # Treated as Linear Layer: (InputLen -> PredLen) shared or individual? 
-        # DLinear used shared or individual. Let's use individual (per channel) to be safe, or shared for efficiency?
-        # Original DLinear implemented both. Let's use Shared Linear for efficiency + GNN for interaction.
-        # Shared Linear: weight (In, Out) shared across N nodes.
-        self.linear_seasonal = nn.Linear(input_len, pred_len)
-        self.linear_trend = nn.Linear(input_len, pred_len)
+        # Changed to MLP for Non-Linear Temporal Mapping
+        mlp_dim = 64
+        self.linear_seasonal = nn.Sequential(
+            nn.Linear(input_len, mlp_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim, pred_len)
+        )
+        self.linear_trend = nn.Sequential(
+            nn.Linear(input_len, mlp_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim, pred_len)
+        )
         
         # GNN Interaction (Space)
         if adj_init is not None:
@@ -227,6 +242,8 @@ class DLinearGNNModel(nn.Module):
         # Applying after Linear seems intuitive: refine the prediction spatially.
         self.gnn_seasonal = nn.Linear(pred_len, pred_len) 
         self.gnn_trend = nn.Linear(pred_len, pred_len)
+
+        self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
         # x: (Batch, InputLen, NumNodes)
@@ -243,6 +260,9 @@ class DLinearGNNModel(nn.Module):
         seasonal_output = self.linear_seasonal(seasonal_init) # (Batch, N, PredLen)
         trend_output = self.linear_trend(trend_init)          # (Batch, N, PredLen)
         
+        seasonal_output = self.dropout(seasonal_output)
+        trend_output = self.dropout(trend_output)
+        
         # Spatial Interaction
         # A @ X
         adj_normalized = torch.softmax(self.adj, dim=1)
@@ -251,11 +271,11 @@ class DLinearGNNModel(nn.Module):
         # A: (1, N, N) broadcast
         # X: (Batch, N, PredLen)
         seasonal_spatial = torch.matmul(adj_normalized, seasonal_output)
-        seasonal_output = seasonal_output + torch.relu(self.gnn_seasonal(seasonal_spatial)) # Residual + Non-linear
+        seasonal_output = seasonal_output + self.dropout(torch.relu(self.gnn_seasonal(seasonal_spatial))) # Residual + Non-linear
         
         # Trend GNN
         trend_spatial = torch.matmul(adj_normalized, trend_output)
-        trend_output = trend_output + torch.relu(self.gnn_trend(trend_spatial))
+        trend_output = trend_output + self.dropout(torch.relu(self.gnn_trend(trend_spatial)))
         
         # Recompose
         x_out = seasonal_output + trend_output # (Batch, N, PredLen)
@@ -266,14 +286,9 @@ class DLinearGNNModel(nn.Module):
         output = torch.cat([x[:, :self.input_len, :], x_out], dim=1)
         return output
 
-        # Concatenate input (hist) + output (pred) to match old interface (B, 20, C)
-        output = torch.cat([x[:, :self.input_len, :], x_out], dim=1)
-        return output
-
-
 
 class Model:
-    def __init__(self, monkey_name="", adj_init=None, model_type=None):
+    def __init__(self, monkey_name="", adj_init=None, model_type=None, dropout=0.0):
         """
         Initialize the model wrapper.
         Args:
@@ -313,8 +328,8 @@ class Model:
              adj_init = torch.eye(self.input_size)
              
         if self.model_type == 'dlinear_gnn':
-            print("Initializing DLinearGNNModel...")
-            self.model = DLinearGNNModel(num_nodes=self.input_size, adj_init=adj_init)
+            print(f"Initializing DLinearGNNModel with dropout={dropout}...")
+            self.model = DLinearGNNModel(num_nodes=self.input_size, adj_init=adj_init, dropout=dropout)
         else:
             # Default to AMAG
             print("Initializing AMAGModel...")

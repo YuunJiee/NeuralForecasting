@@ -192,6 +192,9 @@ class AMAGModel(nn.Module):
         
         return output
 
+ 
+
+
 class DLinearGNNModel(nn.Module):
     """
     Hybrid DLinear + GNN Model
@@ -212,11 +215,20 @@ class DLinearGNNModel(nn.Module):
         # Linear Mapping (Time) for Seasonal and Trend
         # Input: (Batch, Node, InputLen) -> Output: (Batch, Node, PredLen)
         # Treated as Linear Layer: (InputLen -> PredLen) shared or individual? 
-        # DLinear used shared or individual. Let's use individual (per channel) to be safe, or shared for efficiency?
-        # Original DLinear implemented both. Let's use Shared Linear for efficiency + GNN for interaction.
-        # Shared Linear: weight (In, Out) shared across N nodes.
-        self.linear_seasonal = nn.Linear(input_len, pred_len)
-        self.linear_trend = nn.Linear(input_len, pred_len)
+        # Changed to MLP for Non-Linear Temporal Mapping
+        mlp_dim = 64
+        self.linear_seasonal = nn.Sequential(
+            nn.Linear(input_len, mlp_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim, pred_len)
+        )
+        self.linear_trend = nn.Sequential(
+            nn.Linear(input_len, mlp_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim, pred_len)
+        )
         
         # GNN Interaction (Space)
         if adj_init is not None:
@@ -272,11 +284,6 @@ class DLinearGNNModel(nn.Module):
         
         output = torch.cat([x[:, :self.input_len, :], x_out], dim=1)
         return output
-
-        # Concatenate input (hist) + output (pred) to match old interface (B, 20, C)
-        output = torch.cat([x[:, :self.input_len, :], x_out], dim=1)
-        return output
-
 
 
 class Model:

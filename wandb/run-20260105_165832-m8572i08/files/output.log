@@ -1,0 +1,46 @@
+WandB initialized: glad-aardvark-3
+Device: cuda
+Dataset: beignet
+Model Type: dlinear_gnn
+Learning Rate: 0.001
+Loading data...
+Saved training stats to weights/stats_beignet_dlinear_gnn.npz
+Train samples: 560
+Val samples: 70
+Computing Pearson Correlation Matrix...
+Computed Pearson Matrix with shape: torch.Size([89, 89])
+Initializing model (dlinear_gnn)...
+Using WeightedMSELoss (alpha=1.0)
+Using Cosine Annealing Scheduler
+Starting training...
+Epoch 0, Train Loss: 0.240482, Val Loss:0.216037
+Epoch 10, Train Loss: 0.043621, Val Loss:0.040076
+Epoch 20, Train Loss: 0.033777, Val Loss:0.031553
+Epoch 30, Train Loss: 0.031050, Val Loss:0.029499
+Epoch 40, Train Loss: 0.029705, Val Loss:0.028133
+Epoch 50, Train Loss: 0.028754, Val Loss:0.027084
+Epoch 60, Train Loss: 0.027842, Val Loss:0.026335
+Epoch 70, Train Loss: 0.027302, Val Loss:0.025696
+Epoch 80, Train Loss: 0.026757, Val Loss:0.025184
+Epoch 90, Train Loss: 0.026393, Val Loss:0.024823
+Epoch 100, Train Loss: 0.026196, Val Loss:0.024495
+Epoch 110, Train Loss: 0.025894, Val Loss:0.024236
+Epoch 120, Train Loss: 0.025797, Val Loss:0.023975
+Epoch 130, Train Loss: 0.025463, Val Loss:0.023793
+Epoch 140, Train Loss: 0.025439, Val Loss:0.023639
+Epoch 150, Train Loss: 0.025288, Val Loss:0.023535
+Epoch 160, Train Loss: 0.025213, Val Loss:0.023412
+Epoch 170, Train Loss: 0.025173, Val Loss:0.023275
+Epoch 180, Train Loss: 0.024955, Val Loss:0.023206
+Epoch 190, Train Loss: 0.024737, Val Loss:0.023176
+Epoch 200, Train Loss: 0.024936, Val Loss:0.023097
+Epoch 210, Train Loss: 0.024765, Val Loss:0.023065
+Epoch 220, Train Loss: 0.024588, Val Loss:0.023033
+Epoch 230, Train Loss: 0.024725, Val Loss:0.023012
+Epoch 240, Train Loss: 0.024612, Val Loss:0.023004
+Epoch 250, Train Loss: 0.024557, Val Loss:0.022978
+Epoch 260, Train Loss: 0.024472, Val Loss:0.022974
+Epoch 270, Train Loss: 0.024624, Val Loss:0.022959
+Epoch 280, Train Loss: 0.024446, Val Loss:0.022956
+Epoch 290, Train Loss: 0.024551, Val Loss:0.022954
+Epoch 299, Train Loss: 0.024490, Val Loss:0.022953

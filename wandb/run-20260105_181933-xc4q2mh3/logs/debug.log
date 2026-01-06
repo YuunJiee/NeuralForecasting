@@ -1,0 +1,26 @@
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_setup.py:_flush():80] Current SDK version is 0.23.1
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_setup.py:_flush():80] Configure stats pid to 4078102
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_setup.py:_flush():80] Loading settings from /home/annie/.config/wandb/settings
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_setup.py:_flush():80] Loading settings from /home/annie/NeuralForecasting/wandb/settings
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_init.py:setup_run_log_directory():714] Logging user logs to /home/annie/NeuralForecasting/wandb/run-20260105_181933-xc4q2mh3/logs/debug.log
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to /home/annie/NeuralForecasting/wandb/run-20260105_181933-xc4q2mh3/logs/debug-internal.log
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_init.py:init():841] calling init triggers
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_init.py:init():846] wandb.init called with sweep_config: {}
+config: {'learning_rate': 0.001, 'architecture': 'dlinear_gnn', 'dataset': 'beignet', 'epochs': 2, 'loss_type': 'weighted_mse', '_wandb': {}}
+2026-01-05 18:19:33,085 INFO    MainThread:4078102 [wandb_init.py:init():889] starting backend
+2026-01-05 18:19:33,338 INFO    MainThread:4078102 [wandb_init.py:init():892] sending inform_init request
+2026-01-05 18:19:33,340 INFO    MainThread:4078102 [wandb_init.py:init():900] backend started and connected
+2026-01-05 18:19:33,345 INFO    MainThread:4078102 [wandb_init.py:init():970] updated telemetry
+2026-01-05 18:19:33,348 INFO    MainThread:4078102 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2026-01-05 18:19:34,014 INFO    MainThread:4078102 [wandb_init.py:init():1041] starting run threads in backend
+2026-01-05 18:19:34,062 INFO    MainThread:4078102 [wandb_run.py:_console_start():2521] atexit reg
+2026-01-05 18:19:34,062 INFO    MainThread:4078102 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2026-01-05 18:19:34,062 INFO    MainThread:4078102 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2026-01-05 18:19:34,062 INFO    MainThread:4078102 [wandb_run.py:_redirect():2461] Redirects installed.
+2026-01-05 18:19:34,063 INFO    MainThread:4078102 [wandb_init.py:init():1081] run started, returning control to user process
+2026-01-05 18:19:34,838 INFO    MainThread:4078102 [wandb_run.py:_finish():2287] finishing run tzuhsuan5684-national-central-university/NSF neural forecasting/xc4q2mh3
+2026-01-05 18:19:34,838 INFO    MainThread:4078102 [wandb_run.py:_atexit_cleanup():2486] got exitcode: 0
+2026-01-05 18:19:34,838 INFO    MainThread:4078102 [wandb_run.py:_restore():2468] restore
+2026-01-05 18:19:34,838 INFO    MainThread:4078102 [wandb_run.py:_restore():2474] restore done
+2026-01-05 18:19:35,911 INFO    MainThread:4078102 [wandb_run.py:_footer_sync_info():3862] logging synced files

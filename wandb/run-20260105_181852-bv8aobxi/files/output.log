@@ -1,0 +1,17 @@
+WandB initialized: ethereal-wood-5
+Device: cuda
+Dataset: beignet
+Model Type: amag
+Learning Rate: 0.001
+Loading data...
+Saved training stats to weights/stats_beignet.npz
+Train samples: 560
+Val samples: 70
+Computing Pearson Correlation Matrix...
+Computed Pearson Matrix with shape: torch.Size([89, 89])
+Initializing model (amag)...
+Using WeightedMSELoss (alpha=1.0)
+Using Cosine Annealing Scheduler
+Starting training...
+Epoch 0, Train Loss: 0.107072, Val Loss:0.058986
+Epoch 1, Train Loss: 0.044643, Val Loss:0.037629
