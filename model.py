@@ -205,7 +205,7 @@ class DLinearGNNModel(nn.Module):
     3. GNN Interaction (Space) applied to both components
     4. Recomposition
     """
-    def __init__(self, num_nodes, input_len=10, pred_len=10, adj_init=None, dropout=0.0):
+    def __init__(self, num_nodes, input_len=10, pred_len=10, adj_init=None, dropout=0.0, hidden_dim=64):
         super(DLinearGNNModel, self).__init__()
         self.num_nodes = num_nodes
         self.input_len = input_len
@@ -218,7 +218,7 @@ class DLinearGNNModel(nn.Module):
         # Input: (Batch, Node, InputLen) -> Output: (Batch, Node, PredLen)
         # Treated as Linear Layer: (InputLen -> PredLen) shared or individual? 
         # Changed to MLP for Non-Linear Temporal Mapping
-        mlp_dim = 64
+        mlp_dim = hidden_dim # Use passed hidden_dim instead of hardcoded 64
         self.linear_seasonal = nn.Sequential(
             nn.Linear(input_len, mlp_dim),
             nn.ReLU(),
@@ -289,7 +289,7 @@ class DLinearGNNModel(nn.Module):
 
 
 class Model:
-    def __init__(self, monkey_name="", adj_init=None, model_type=None, dropout=0.0):
+    def __init__(self, monkey_name="", adj_init=None, model_type=None, dropout=0.0, hidden_dim=128):
         """
         Initialize the model wrapper.
         Args:
@@ -329,12 +329,12 @@ class Model:
              adj_init = torch.eye(self.input_size)
              
         if self.model_type == 'dlinear_gnn':
-            print(f"Initializing DLinearGNNModel with dropout={dropout}...")
-            self.model = DLinearGNNModel(num_nodes=self.input_size, adj_init=adj_init, dropout=dropout)
+            print(f"Initializing DLinearGNNModel with dropout={dropout}, hidden_dim={hidden_dim}...")
+            self.model = DLinearGNNModel(num_nodes=self.input_size, adj_init=adj_init, dropout=dropout, hidden_dim=hidden_dim)
         else:
             # Default to AMAG
-            print("Initializing AMAGModel...")
-            self.model = AMAGModel(num_nodes=self.input_size, adj_init=adj_init)
+            print(f"Initializing AMAGModel with hidden_dim={hidden_dim}...")
+            self.model = AMAGModel(num_nodes=self.input_size, adj_init=adj_init, hidden_dim=hidden_dim)
             
         self.model.to(self.device)
         

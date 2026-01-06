@@ -3,18 +3,21 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-def load_dataset(filename, input_dir='./data'):
+def load_dataset(filename, input_dir='./data', extra_files=[], full_train=False):
     """
     Load test dataset from file.
 
     Args:
+    Args:
         filename: Name of the test data file (e.g., 'train_data_beignet.npz')
         input_dir: Directory containing the data file
+        extra_files: List of additional filenames to merge (e.g. private data)
+        full_train: If True, use all data for training (no split)
 
     Returns:
-        train_data: Samples to train with shape (num_samples, num_timestep, num_channels, num_bands)
-        test_data: Samples to test with shape (num_samples, num_timestep, num_channels, num_bands)
-        val_data: Samples to validate with shape (num_samples, num_timestep, num_channels, num_bands)
+        train_data: Samples to train
+        test_data: Samples to test
+        val_data: Samples to validate
     """
     test_file = os.path.join(input_dir, filename)
     
@@ -25,15 +28,32 @@ def load_dataset(filename, input_dir='./data'):
     # split into train(80%), test(10%), val(10%)
     try:
         data = np.load(test_file)['arr_0']
-    except Exception as e:
-        raise ValueError(f"Failed to load data from {test_file}. Error: {e}")
         
-    train_end = int(len(data) * 0.8)
-    test_end = int(len(data) * 0.9)
-    
-    train_data = data[:train_end]
-    test_data = data[train_end:test_end]
-    val_data = data[test_end:]
+        # Load extra files
+        for extra in extra_files:
+            extra_path = os.path.join(input_dir, extra)
+            if os.path.exists(extra_path):
+                print(f"Merging extra data: {extra}")
+                extra_data = np.load(extra_path)['arr_0']
+                data = np.concatenate([data, extra_data], axis=0)
+            else:
+                print(f"Warning: Extra file {extra} not found.")
+                
+    except Exception as e:
+        raise ValueError(f"Failed to load data. Error: {e}")
+        
+    if full_train:
+        print(f"Full Training Mode: Using all {len(data)} samples for training.")
+        train_data = data
+        test_data = data # Use same data for test/val to prevent errors, but ignore metrics
+        val_data = data
+    else:
+        train_end = int(len(data) * 0.8)
+        test_end = int(len(data) * 0.9)
+        
+        train_data = data[:train_end]
+        test_data = data[train_end:test_end]
+        val_data = data[test_end:]
 
     return train_data, test_data, val_data
 

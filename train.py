@@ -25,6 +25,10 @@ def main():
     parser.add_argument('--model', type=str, default='amag', choices=['amag', 'dlinear_gnn'], help='Model architecture')
     parser.add_argument('--alpha', type=float, default=1.0, help='Alpha parameter for weighted loss')
     parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability')
+    parser.add_argument('--hidden_dim', type=int, default=64, help='Hidden dimension size')
+    parser.add_argument('--weight_decay', type=float, default=0.0, help='Weight decay (L2 penalty)')
+    parser.add_argument('--full_data', action='store_true', help='Use all available data (Public+Private) for training')
+    parser.add_argument('--name', type=str, default=None, help='WandB run name')
     args = parser.parse_args()
 
     # --- Configuration ---
@@ -49,6 +53,7 @@ def main():
     run = wandb.init(
         # Set the wandb project where this run will be logged.
         project="NSF neural forecasting",
+        name=args.name,
         # Track hyperparameters and run metadata.
         config={
             "learning_rate": learning_rate,
@@ -79,7 +84,25 @@ def main():
 
     print("Loading data...")
     try:
-        train_data, test_data, val_data = load_dataset(data_filename, input_dir='./data')
+        extra_files = []
+        if args.full_data:
+            print("--- FULL DATA MODE ENABLED ---")
+            if dataset_name == 'beignet':
+                extra_files = [
+                    'train_data_beignet_2022-06-01_private.npz',
+                    'train_data_beignet_2022-06-02_private.npz'
+                ]
+            elif dataset_name == 'affi':
+                extra_files = [
+                    'train_data_affi_2024-03-20_private.npz'
+                ]
+        
+        train_data, test_data, val_data = load_dataset(
+            data_filename, 
+            input_dir='./data', 
+            extra_files=extra_files, 
+            full_train=args.full_data
+        )
         
         # Create Datasets
         # We need to compute stats from train_data first
@@ -132,16 +155,16 @@ def main():
     # Let's instantiate based on model_type argument logic consistent with model.py classes.
     
     if model_type == 'dlinear_gnn':
-        model = DLinearGNNModel(num_nodes=input_size, adj_init=adj_init, dropout=args.dropout)
+        model = DLinearGNNModel(num_nodes=input_size, adj_init=adj_init, dropout=args.dropout, hidden_dim=args.hidden_dim)
     else:
-        model = AMAGModel(num_nodes=input_size, adj_init=adj_init)
+        model = AMAGModel(num_nodes=input_size, adj_init=adj_init, hidden_dim=args.hidden_dim, dropout=args.dropout)
         
     model = model.to(device)
 
     print(f"Using WeightedMSELoss (alpha={args.alpha})")
     loss_fn = WeightedMSELoss(alpha=args.alpha, reduction='mean')
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=args.weight_decay)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
     print("Using Cosine Annealing Scheduler")
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
