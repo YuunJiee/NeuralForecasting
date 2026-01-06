@@ -51,11 +51,11 @@ def main():
     print("--- Simulating Leaderboard Evaluation ---")
     
     # 1. Initialize Models
-    print("Loading Models...")
-    model_beignet = Model('beignet')
+    print("Loading Models (with blur_sigma=1.0)...")
+    model_beignet = Model('beignet', blur_sigma=1.0)
     model_beignet.load()
     
-    model_affi = Model('affi')
+    model_affi = Model('affi', blur_sigma=1.0)
     model_affi.load()
     
     # 2. Load Datasets

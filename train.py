@@ -10,7 +10,7 @@ import wandb
 # Ensure project root is in path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from utils.data_loader import load_dataset, NeuroForcastDataset
+from utils.data_loader import load_dataset, NeuroForcastDataset, apply_gaussian_blur
 from utils.trainer import Trainer, AdvancedTrainer
 from utils.graph_utils import get_pearson_correlation
 from utils.loss import WeightedMSELoss
@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--hidden_dim', type=int, default=64, help='Hidden dimension size')
     parser.add_argument('--weight_decay', type=float, default=0.0, help='Weight decay (L2 penalty)')
     parser.add_argument('--full_data', action='store_true', help='Use all available data (Public+Private) for training')
+    parser.add_argument('--blur_sigma', type=float, default=0.0, help='Sigma for Gaussian Blur')
     parser.add_argument('--name', type=str, default=None, help='WandB run name')
     args = parser.parse_args()
 
@@ -97,12 +98,59 @@ def main():
                     'train_data_affi_2024-03-20_private.npz'
                 ]
         
-        train_data, test_data, val_data = load_dataset(
-            data_filename, 
-            input_dir='./data', 
-            extra_files=extra_files, 
-            full_train=args.full_data
-        )
+        # Custom Loading Logic for Private Validation Strategy
+        # Strategy:
+        # 1. Load Main Data (Public)
+        # 2. Load Extra Data (Private)
+        # 3. Train Set = Main + 90% Private
+        # 4. Val Set = 10% Private (to align with target distribution)
+        # This ensures we train on as much data as possible, but validate strictly on Private-like data.
+        
+        # Load Main
+        main_train, _, _ = load_dataset(data_filename, input_dir='./data', full_train=True)
+        
+        # Load Private
+        private_data = []
+        for extra in extra_files:
+             p_train, _, _ = load_dataset(extra, input_dir='./data', full_train=True)
+             if len(private_data) == 0:
+                 private_data = p_train
+             else:
+                 private_data = np.concatenate([private_data, p_train], axis=0)
+                 
+        if len(extra_files) > 0:
+            # Shuffle Private Data
+            indices = np.random.permutation(len(private_data))
+            private_data = private_data[indices]
+            
+            # Split Private into Train/Val (90/10)
+            split_idx = int(len(private_data) * 0.9)
+            private_train = private_data[:split_idx]
+            private_val = private_data[split_idx:]
+            
+            # Combine for Final Sets
+            train_data = np.concatenate([main_train, private_train], axis=0)
+            val_data = private_val
+            # Test data is same as val for now
+            test_data = val_data
+            
+            print(f"--- Private Validation Strategy Applied ---")
+            print(f"Train Size: {len(train_data)} (Main + {len(private_train)} Private)")
+            print(f"Val Size: {len(val_data)} (Pure Private)")
+        else:
+            # Fallback to standard split if no extra files
+            train_data, test_data, val_data = load_dataset(
+                data_filename, 
+                input_dir='./data', 
+                extra_files=extra_files, 
+                full_train=args.full_data
+            )
+
+        # Apply Blur
+        if args.blur_sigma > 0:
+            train_data = apply_gaussian_blur(train_data, sigma=args.blur_sigma)
+            val_data = apply_gaussian_blur(val_data, sigma=args.blur_sigma)
+            test_data = apply_gaussian_blur(test_data, sigma=args.blur_sigma)
         
         # Create Datasets
         # We need to compute stats from train_data first

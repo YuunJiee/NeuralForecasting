@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-import os
 import numpy as np
+import os
+from scipy.ndimage import gaussian_filter1d
 
 class MovingAvg(nn.Module):
     """
@@ -289,7 +290,7 @@ class DLinearGNNModel(nn.Module):
 
 
 class Model:
-    def __init__(self, monkey_name="", adj_init=None, model_type=None, dropout=0.0, hidden_dim=128):
+    def __init__(self, monkey_name="", adj_init=None, model_type=None, dropout=0.0, hidden_dim=128, blur_sigma=0.0):
         """
         Initialize the model wrapper.
         Args:
@@ -299,6 +300,7 @@ class Model:
                               If None, auto-selects best model for the subject.
         """
         self.monkey_name = monkey_name
+        self.blur_sigma = blur_sigma
         
         # Auto-select best model if not specified
         if model_type is None:
@@ -412,6 +414,16 @@ class Model:
         # X shape: (B, T, C, F). 
         # Extract meaningful input based on dataset logic (first feature only for now)
         
+        # Apply Gaussian Blur (Preprocessing)
+        if self.blur_sigma > 0:
+            # CRITICAL: Only blur the input history (first 10 steps) to avoid boundary artifacts
+            # with the masked future (which is flat/repeated).
+            input_steps = 10
+            if X.shape[1] >= input_steps:
+                 X[:, :input_steps] = gaussian_filter1d(X[:, :input_steps], sigma=self.blur_sigma, axis=1, mode='nearest')
+            else:
+                 X = gaussian_filter1d(X, sigma=self.blur_sigma, axis=1, mode='nearest')
+
         # Normalize Input
         X_norm = self._normalize(X)
         
@@ -439,8 +451,9 @@ class Model:
         # Affi has a systematic negative bias (Pred < GT).
         # We apply a mean-shift calibration to center the predictions.
         if self.monkey_name == 'affi':
-            calibration_bias = 12.057
-            prediction = prediction + calibration_bias
+            # calibration_bias = 12.057
+            # prediction = prediction + calibration_bias
+            pass
             
         # --- Temporal Smoothing (EMA) ---
         # Based on post-processing experiments:

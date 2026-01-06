@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+from scipy.ndimage import gaussian_filter1d
 
 def load_dataset(filename, input_dir='./data', extra_files=[], full_train=False):
     """
@@ -56,6 +57,22 @@ def load_dataset(filename, input_dir='./data', extra_files=[], full_train=False)
         val_data = data[test_end:]
 
     return train_data, test_data, val_data
+
+def apply_gaussian_blur(data, sigma=1.0):
+    """
+    Apply Gaussian Blur to smooth the data along the time axis.
+    Args:
+        data: Numpy array of shape (N, T, C, F)
+        sigma: Standard deviation for Gaussian kernel
+    Returns:
+        blurred_data: Numpy array of same shape
+    """
+    if sigma <= 0:
+        return data
+    
+    print(f"Applying Gaussian Blur with sigma={sigma}...")
+    # Apply along axis 1 (Time)
+    return gaussian_filter1d(data, sigma=sigma, axis=1)
 
 
 def normalize(data, average=[], std=[]):
