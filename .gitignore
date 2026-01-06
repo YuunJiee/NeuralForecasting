@@ -47,3 +47,12 @@ weights/
 
 results/
 submission/
+
+# WandB
+wandb/
+
+# Submission Artifacts
+submit_*/
+
+# Other Data Formats
+*.npz

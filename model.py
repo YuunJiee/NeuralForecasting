@@ -119,7 +119,7 @@ class AMAGModel(nn.Module):
     2. Spatial Interaction (GNN) between nodes.
     3. Prediction readout.
     """
-    def __init__(self, num_nodes, input_len=10, pred_len=10, hidden_dim=64, adj_init=None):
+    def __init__(self, num_nodes, input_len=10, pred_len=10, hidden_dim=64, adj_init=None, dropout=0.0):
         super(AMAGModel, self).__init__()
         self.num_nodes = num_nodes
         self.input_len = input_len
@@ -129,7 +129,7 @@ class AMAGModel(nn.Module):
         # 1. Temporal Encoder (Shared across all nodes)
         # Input: (Batch, Time, 1) per node -> Output: (Batch, Hidden)
         # We process each node's time series independently first.
-        self.temporal_encoder = nn.GRU(input_size=1, hidden_size=hidden_dim, num_layers=2, batch_first=True)
+        self.temporal_encoder = nn.GRU(input_size=1, hidden_size=hidden_dim, num_layers=2, batch_first=True, dropout=dropout)
         
         # 2. Spatial Interaction (GNN)
         # Learnable Adjacency Matrix
@@ -147,6 +147,7 @@ class AMAGModel(nn.Module):
         
         # 3. Readout
         self.readout = nn.Linear(hidden_dim, pred_len)
+        self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
         # x shape: (Batch, InputLen, NumNodes) OR (Batch, TotalLen, NumNodes) if training
@@ -175,11 +176,11 @@ class AMAGModel(nn.Module):
         spatial_agg = torch.matmul(adj_normalized, temporal_feat) # (Batch, N, Hidden)
         
         # Transform 
-        spatial_feat = torch.relu(self.gnn_fc(spatial_agg))
+        spatial_feat = self.dropout(torch.relu(self.gnn_fc(spatial_agg)))
         
         # Fusion
         combined = torch.cat([temporal_feat, spatial_feat], dim=-1)
-        fused = self.gnn_fusion(combined) # (Batch, N, Hidden)
+        fused = self.dropout(torch.relu(self.gnn_fusion(combined))) # (Batch, N, Hidden)
         
         # Readout
         pred = self.readout(fused) # (Batch, N, PredLen)
