@@ -5,3 +5,4 @@ scikit-learn
 torch
 tqdm
 jupyter
+wandb
