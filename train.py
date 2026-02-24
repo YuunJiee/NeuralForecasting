@@ -21,7 +21,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='beignet', choices=['beignet', 'affi'], help='Dataset name')
+    parser.add_argument('--dataset', type=str, default='affi', choices=['beignet', 'affi'], help='Dataset name')
     parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train')
     parser.add_argument('--model', type=str, default='amag', choices=['amag', 'dlinear_gnn'], help='Model architecture')
     parser.add_argument('--alpha', type=float, default=1.0, help='Alpha parameter for weighted loss')
