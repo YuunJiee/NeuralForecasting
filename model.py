@@ -139,9 +139,10 @@ class AMAGModel(nn.Module):
             # Paper suggests dynamic, but here we initialize with Pearson and let it be learnable or static-ish
             # We'll make it a learnable weight initialized by Pearson
             self.adj = nn.Parameter(adj_init.clone())
+            
         else:
             self.adj = nn.Parameter(torch.randn(num_nodes, num_nodes))
-            
+        self.graph_gate = nn.Parameter(torch.tensor(0.5))
         # GNN Layer (Simple Graph Conv W)
         self.gnn_fc = nn.Linear(hidden_dim, hidden_dim)
         self.gnn_fusion = nn.Linear(2 * hidden_dim, hidden_dim) # Fusion of Temporal + Spatial
@@ -164,7 +165,7 @@ class AMAGModel(nn.Module):
         # Encode -> (Batch * NumNodes, InputLen, Hidden)
         out, h_n = self.temporal_encoder(x_flat)
         # Take last hidden state: (Batch * NumNodes, Hidden)
-        temporal_feat = out[:, -1, :] 
+        temporal_feat = out.mean(dim=1)
         
         # Reshape back to (Batch, NumNodes, Hidden)
         temporal_feat = temporal_feat.view(batch_size, self.num_nodes, self.hidden_dim)
@@ -174,7 +175,10 @@ class AMAGModel(nn.Module):
         # A: (NumNodes, NumNodes)
         # X: (Batch, NumNodes, Hidden)
         adj_normalized = torch.softmax(self.adj, dim=1) 
-        spatial_agg = torch.matmul(adj_normalized, temporal_feat) # (Batch, N, Hidden)
+        gate = torch.sigmoid(self.graph_gate)  # scalar in (0,1)
+
+        spatial_agg = gate * torch.matmul(adj_normalized, temporal_feat) \
+                    + (1 - gate) * temporal_feat
         
         # Transform 
         spatial_feat = self.dropout(torch.relu(self.gnn_fc(spatial_agg)))
@@ -213,7 +217,7 @@ class DLinearGNNModel(nn.Module):
         self.pred_len = pred_len
         
         # Decomposition
-        self.decomposition = SeriesDecomp(kernel_size=3)
+        self.decomposition = SeriesDecomp(kernel_size=5)
         
         # Linear Mapping (Time) for Seasonal and Trend
         # Input: (Batch, Node, InputLen) -> Output: (Batch, Node, PredLen)
@@ -277,7 +281,9 @@ class DLinearGNNModel(nn.Module):
         
         # Trend GNN
         trend_spatial = torch.matmul(adj_normalized, trend_output)
-        trend_output = trend_output + self.dropout(torch.relu(self.gnn_trend(trend_spatial)))
+        trend_output = trend_output + 0.05 * self.dropout(
+            torch.relu(self.gnn_trend(trend_spatial))
+        )
         
         # Recompose
         x_out = seasonal_output + trend_output # (Batch, N, PredLen)
